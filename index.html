@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>拠点からの距離試算</title>
+<title>拠点からの距離試算と燃料サーチャージ試算</title>
 <style>
   :root{--ink:#1d2433;--sub:#5b6474;--line:#d9dee7;--bg:#f4f6f9;--card:#fff;--accent:#0b5cad;--accent-soft:#e8f1fb;--warn:#9a5b00;--warn-soft:#fff6e5;--err:#b42318;}
   *{box-sizing:border-box}
@@ -72,13 +72,13 @@
 </head>
 <body>
 <header>
-  <h1>拠点からの距離試算</h1>
+  <h1>拠点からの距離試算と燃料サーチャージ試算</h1>
   <div class="base"><label for="base">拠点</label><select id="base"></select></div>
   <button class="ghost" id="clearAll" type="button">すべてクリア</button>
 </header>
 <div id="gate" style="display:none;position:fixed;inset:0;background:rgba(20,28,45,.55);z-index:50;align-items:center;justify-content:center">
   <form id="gateForm" style="background:#fff;border-radius:12px;padding:24px 26px;width:min(420px,90vw);box-shadow:0 10px 30px rgba(0,0,0,.25)">
-    <div style="font-weight:700;font-size:17px;margin-bottom:6px">拠点からの距離試算</div>
+    <div style="font-weight:700;font-size:17px;margin-bottom:6px">拠点からの距離試算と燃料サーチャージ試算</div>
     <div style="font-size:14px;color:var(--sub);margin-bottom:12px">社内の合言葉を入力してください。</div>
     <input id="gatePass" type="password" autocomplete="current-password" style="width:100%;font:inherit;padding:10px;border:1px solid #c3cad6;border-radius:6px">
     <label style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--sub);margin-top:8px"><input type="checkbox" id="gateKeep" checked>このPCで合言葉を覚える</label>
