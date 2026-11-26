@@ -251,6 +251,7 @@ function showGate(msg){ $('#gate').style.display='flex'; $('#gateMsg').textConte
 $('#gateForm').onsubmit=e=>{ e.preventDefault(); PASS=$('#gatePass').value; if($('#gateKeep').checked) LS.set('kyori.pass',PASS); SS.set('kyori.pass',PASS); start(); };
 let started=false;
 async function start(){
+  if(!PASS){ showGate(''); return; }
   try{
     if(!DATA){ DATA=await api('/api/struct'); }
     else { await api('/api/struct'); }
