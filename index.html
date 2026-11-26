@@ -52,6 +52,22 @@
   .ref{margin-top:10px;font-size:13px;color:var(--sub);border-top:1px dashed var(--line);padding-top:8px}
   footer{max-width:1180px;margin:18px auto 30px;padding:0 20px;font-size:12.5px;color:var(--sub)}
   footer ul{margin:4px 0;padding-left:18px}
+  .sc{margin-top:18px}
+  .sc .row{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .sc .row label{font-size:14px;color:var(--sub)}
+  .sc .row select{width:auto;min-width:140px}
+  .sc .two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media (max-width:860px){.sc .two{grid-template-columns:1fr}}
+  .sc .box{border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+  .sc .box h3{font-size:15px;margin:0 0 10px}
+  .sc input.num{width:120px;font:inherit;padding:8px 10px;border:1px solid #c3cad6;border-radius:6px;text-align:right}
+  .yen{font-size:30px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+  .yen small{font-size:15px;margin-left:4px}
+  .seg{display:inline-flex;border:1px solid var(--accent);border-radius:8px;overflow:hidden;margin-bottom:12px}
+  .segb{font:inherit;font-weight:700;padding:8px 22px;border:0;background:#fff;color:var(--accent);cursor:pointer}
+  .segb.on{background:var(--accent);color:#fff}
+  .calc{font:inherit;font-weight:700;padding:8px 26px;border:0;border-radius:6px;background:var(--accent);color:#fff;cursor:pointer;box-shadow:0 2px 0 #08447f}
+  .calc:active{transform:translateY(1px);box-shadow:none}
 </style>
 </head>
 <body>
@@ -72,11 +88,25 @@
 </div>
 <main>
   <div class="grid" id="grid"></div>
+  <section class="card sc" id="sc">
+    <h2><span class="tag">燃料サーチャージ</span></h2>
+    <div class="row"><label for="scLv">燃料上昇額（変動額）</label><select id="scLv"></select><span style="font-size:13px;color:var(--sub)">の場合の表で計算します</span></div>
+    <div class="seg" role="tablist"><button type="button" class="segb" data-k="mega">メガ</button><button type="button" class="segb" data-k="kashi">貸切</button></div>
+    <div class="box" id="boxMega">
+      <div class="row"><label for="scW">重量</label><input id="scW" class="num" type="text" inputmode="numeric" placeholder="例：120"><span>kg</span><button class="calc" id="calcMega" type="button">計算</button></div>
+      <div id="scMega"></div>
+    </div>
+    <div class="box" id="boxKashi">
+      <div class="row"><label for="scV">車格</label><select id="scV"><option value="2t">2ｔ車</option><option value="4t">4ｔ車</option><option value="11t">大型（13ｔ車）</option></select><button class="calc" id="calcKashi" type="button">計算</button></div>
+      <div id="scKashi"></div>
+    </div>
+  </section>
 </main>
 <footer>
   <ul>
     <li>集荷先：拠点の住所から集荷先住所までの道路距離（Googleマップ）。最短時間ルート（高速・有料道路を含む）と一般道のみの2通りを表示します（所要時間は渋滞を考慮しない目安）。</li>
     <li>配達先：拠点の店から管轄店（着店）までの店間距離＋中継・有料配達の加算距離（運賃/燃料SC計算用の距離で、実際の道路距離ではありません）。</li>
+    <li>燃料サーチャージ：メガは配達先の運賃/燃料SC計算用距離と重量、貸切は集荷先→配達先の道路距離（Googleマップ・最短時間ルート）と車格で、選んだ燃料上昇額の表から計算します。</li>
     <li>住所は直接入力するとプルダウンに自動で反映されます。反映された町名が違うときは、プルダウンで選び直してください。</li>
     <li>データ：輸送の手引き（2026年11月24日時点）・距離マスタ（起点21拠点）。計算は社内サーバーで行います。</li>
   </ul>
@@ -214,6 +244,7 @@ function road(b,dest){const k=b+'|'+dest; if(roadCache.has(k)) return roadCache.
   const pr=api('/api/road',{b,dest}); roadCache.set(k,pr); pr.catch(()=>roadCache.delete(k)); return pr;}
 function onAuth(e){ if(e instanceof AuthErr){ showGate(e.message); return true;} return false; }
 function render(P){
+  if(typeof resetSC==='function'&&$('#scMega')) resetSC();
   const token=(P.tok=(P.tok||0)+1);
   if(baseSel.value===''){P.res.innerHTML='<div style="color:var(--warn);font-size:14px;font-weight:600">上の「拠点」を選んでください。</div>';P.out=null;return;}
   const base=DATA.bases[+baseSel.value];
@@ -222,7 +253,7 @@ function render(P){
   const [ri]=P.town.value.split('|').map(Number); const row=city.rows[ri];
   const place=PREFS[pi].p+city.m.replace(' ','')+(P.town.selectedIndex>0||row[0]!=='d'?P.town.options[P.town.selectedIndex].text.replace('【建物】',' ').replace('その他の町名（下記以外）','（下記以外）'):'（下記以外）');
   const dest=P.addr.value.trim()||place.replace(/（下記以外）$/,'').replace(/～/g,'');
-  P.out={place};
+  P.out={place,pi,ci,ri,dest};
   const origin=base[2]||'';
   const link='<a class="gm" target="_blank" rel="noopener" href="'+esc(gmUrl(origin,dest))+'">';
   if(P.road){
@@ -246,6 +277,53 @@ function render(P){
     .catch(e=>{ if(token!==P.tok||onAuth(e)) return; el.textContent='（取得できませんでした：'+e.message+'）'; });
   }).catch(e=>{ if(token!==P.tok||onAuth(e)) return; P.res.innerHTML='<div class="msg err">'+esc(e.message)+'</div>'; });
 }
+
+// ---- 燃料サーチャージ ----
+const scLv=$('#scLv'), scW=$('#scW'), scV=$('#scV');
+const numv=x=>parseFloat(String(x||'').normalize('NFKC').replace(/,/g,''));
+const yen=n=>'<div class="yen">'+n.toLocaleString('ja-JP')+'<small>円</small></div>';
+function scMsg(t,err){return '<div style="color:'+(err?'var(--err)':'var(--sub)')+';font-size:14px">'+esc(t)+'</div>';}
+const WAIT='「計算」を押してください。';
+function resetSC(){ $('#scMega').innerHTML=scMsg(WAIT); $('#scKashi').innerHTML=scMsg(WAIT); }
+let scMode='mega';
+function setMode(k){scMode=k; LS.set('kyori.sc.mode',k); document.querySelectorAll('.segb').forEach(b=>b.classList.toggle('on',b.dataset.k===k));
+  $('#boxMega').style.display=k==='mega'?'':'none'; $('#boxKashi').style.display=k==='kashi'?'':'none';}
+let scTok=0;
+async function calcMega(){
+  const t=++scTok, el=$('#scMega'), lv=scLv.value, P=panels[1], w=numv(scW.value);
+  if(baseSel.value==='') return el.innerHTML=scMsg('上の「拠点」を選んでください。');
+  if(!lv) return el.innerHTML=scMsg('燃料上昇額の段階を選んでください。');
+  if(!P||!P.out) return el.innerHTML=scMsg('配達先を入力してください（運賃/燃料SC計算用距離を使います）。');
+  if(!(w>0)) return el.innerHTML=scMsg('重量を入力してください。');
+  el.innerHTML=scMsg('計算中…');
+  try{
+    const r=await api('/api/sc/mega',{b:DATA.bases[+baseSel.value][0],p:P.out.pi,c:P.out.ci,r:P.out.ri,w,lv:+lv}); if(t!==scTok) return;
+    if(r.nodata) return el.innerHTML=scMsg('この拠点からの距離データがないため計算できません。',1);
+    el.innerHTML=yen(r.amt)+'<dl><dt>距離</dt><dd>'+fmt(r.dist)+' km → '+(r.nD?'1,000km＋'+r.nD*100+'km':fmt(r.db)+'km帯')+'（配達先の運賃/燃料SC計算用距離）</dd><dt>重量</dt><dd>'+fmt(w)+' kg → '+(r.nW?'1,000kg＋'+r.nW*100+'kg':fmt(r.wb)+'kg帯')+'</dd><dt>燃料上昇額</dt><dd>'+esc(lv)+' 円/L</dd></dl>';
+  }catch(e){ if(t!==scTok||onAuth(e)) return; el.innerHTML=scMsg(e.message,1); }
+}
+async function calcKashi(){
+  const t=++scTok, el=$('#scKashi'), lv=scLv.value, A=panels[0], B=panels[1];
+  if(!lv) return el.innerHTML=scMsg('燃料上昇額の段階を選んでください。');
+  if(!A||!A.out||!B||!B.out) return el.innerHTML=scMsg('集荷先と配達先を入力してください。');
+  el.innerHTML=scMsg('計算中…（Googleマップで集荷先→配達先の距離を計算しています）');
+  try{
+    const r=await api('/api/sc/kashi',{from:A.out.dest,to:B.out.dest,veh:scV.value,lv:+lv}); if(t!==scTok) return;
+    el.innerHTML=yen(r.amt)+'<dl><dt>集荷先→配達先</dt><dd>'+fmtKm(r.m)+' km（Googleマップ・最短時間ルート、'+fmtT(r.s)+'）</dd><dt>距離帯</dt><dd>'+(r.nD?'1,000km＋'+r.nD*50+'km':fmt(r.db)+'km帯')+'</dd><dt>車格</dt><dd>'+esc(scV.options[scV.selectedIndex].text)+'</dd><dt>燃料上昇額</dt><dd>'+esc(lv)+' 円/L</dd></dl>'+'<div style="margin-top:4px"><a class="gm" target="_blank" rel="noopener" href="'+esc(gmUrl(A.out.dest,B.out.dest))+'">Googleマップでルートを見る</a></div>';
+  }catch(e){ if(t!==scTok||onAuth(e)) return; el.innerHTML=scMsg(e.message,1); }
+}
+function initSC(){
+  scLv.add(new Option('段階を選択',''));
+  for(let l=9;l<=159;l+=10) scLv.add(new Option(l+' 円/L',l));
+  const v=LS.get('kyori.sc.lv'); if(v) scLv.value=v;
+  scV.value='11t';
+  scLv.onchange=()=>{LS.set('kyori.sc.lv',scLv.value); resetSC();};
+  scV.onchange=()=>{$('#scKashi').innerHTML=scMsg(WAIT);};
+  scW.oninput=()=>{$('#scMega').innerHTML=scMsg(WAIT);};
+  $('#calcMega').onclick=calcMega; $('#calcKashi').onclick=calcKashi;
+  document.querySelectorAll('.segb').forEach(b=>b.onclick=()=>setMode(b.dataset.k));
+  setMode(LS.get('kyori.sc.mode')==='kashi'?'kashi':'mega'); resetSC();
+}
 // ---- 合言葉 ----
 function showGate(msg){ $('#gate').style.display='flex'; $('#gateMsg').textContent=msg||''; setTimeout(()=>$('#gatePass').focus(),50); }
 $('#gateForm').onsubmit=e=>{ e.preventDefault(); PASS=$('#gatePass').value; if($('#gateKeep').checked) LS.set('kyori.pass',PASS); SS.set('kyori.pass',PASS); start(); };
@@ -264,7 +342,7 @@ async function start(){
   DATA.bases.forEach(([c,n],i)=>baseSel.add(new Option(c+'　'+n,i)));
   {const saved=LS.get('kyori.base.v2'); const i=DATA.bases.findIndex(b=>b[0]===saved); baseSel.value=i<0?'':String(i);}
   markBase();
-  makePanel('集荷先'); makePanel('配達先'); panels[0].road=true;
+  makePanel('集荷先'); makePanel('配達先'); panels[0].road=true; initSC();
   panels.forEach(render);
   baseSel.onchange=()=>{markBase(); if(baseSel.value!=='') LS.set('kyori.base.v2',DATA.bases[+baseSel.value][0]); panels.forEach(render);};
   $('#clearAll').onclick=()=>panels.forEach(P=>{P.addr.value='';P.pref.value='';P.fill.fillCity();setMsg(P,'');render(P);});
