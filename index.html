@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>拠点からの距離試算</title>
+<style>
+  :root{--ink:#1d2433;--sub:#5b6474;--line:#d9dee7;--bg:#f4f6f9;--card:#fff;--accent:#0b5cad;--accent-soft:#e8f1fb;--warn:#9a5b00;--warn-soft:#fff6e5;--err:#b42318;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Yu Gothic UI","Meiryo","Hiragino Sans",system-ui,sans-serif;color:var(--ink);background:var(--bg);font-size:15px;line-height:1.6}
+  header{background:#fff;border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+  h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.02em}
+  .base{display:flex;align-items:center;gap:10px}
+  .base label{font-weight:600;color:var(--sub);font-size:14px}
+  main{max-width:1180px;margin:20px auto;padding:0 20px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media (max-width:860px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px}
+  .card h2{font-size:16px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  .tag{font-size:12px;font-weight:700;padding:2px 8px;border-radius:4px;background:var(--accent-soft);color:var(--accent)}
+  .field{margin-bottom:10px}
+  .field>span{display:block;font-size:13px;color:var(--sub);margin-bottom:3px}
+  input[type=text],select{width:100%;font:inherit;padding:8px 10px;border:1px solid #c3cad6;border-radius:6px;background:#fff;color:var(--ink)}
+  input[type=text]:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+  .base select{width:auto;min-width:240px} .base select.need{border:2px solid #c0392b;background:#fdecea}
+  .or{display:flex;align-items:center;gap:10px;color:var(--sub);font-size:12px;margin:12px 0 8px}
+  .or:before,.or:after{content:"";flex:1;height:1px;background:var(--line)}
+  .sel3{display:grid;grid-template-columns:1fr 1.3fr;gap:8px}
+  .sel3 .full{grid-column:1/3}
+  .msg{font-size:13px;margin-top:6px;min-height:1.2em}
+  .msg.warn{color:var(--warn)} .msg.err{color:var(--err)}
+  .result{margin-top:14px;border-top:1px solid var(--line);padding-top:14px}
+  .km{font-size:34px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums;line-height:1.2}
+  .km small{font-size:16px;font-weight:600;margin-left:4px}
+  .km.na{font-size:18px;color:var(--err)}
+  dl{display:grid;grid-template-columns:auto 1fr;gap:2px 14px;margin:8px 0 0;font-size:14px}
+  dt{color:var(--sub)} dd{margin:0;font-variant-numeric:tabular-nums}
+  .note{margin-top:8px;font-size:13px;background:var(--warn-soft);color:var(--warn);border-radius:6px;padding:6px 10px}
+  .summary{margin-top:18px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .summary textarea{flex:1;min-width:300px;font:inherit;font-size:14px;padding:8px 10px;border:1px solid #c3cad6;border-radius:6px;height:84px;resize:vertical}
+  button{font:inherit;font-weight:600;padding:8px 16px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+  button.ghost{background:#fff;color:var(--accent)}
+  details.settings{max-width:1180px;margin:14px auto 0;padding:0 20px}
+  details.settings>summary{cursor:pointer;font-weight:600;color:var(--accent);font-size:14px}
+  .setbox{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin-top:8px}
+  .setbox table{border-collapse:collapse;width:100%;font-size:13.5px}
+  .setbox td{padding:3px 6px;border-bottom:1px solid #eef1f5}
+  .setbox td:first-child{white-space:nowrap;color:var(--sub);width:1%}
+  .setbox input{padding:5px 8px}
+  .road{font-size:12px;font-weight:700;color:#fff;background:#1a7f4b;border-radius:4px;padding:2px 7px;margin-left:6px;vertical-align:middle}
+  a.gm{font-size:13px;color:var(--accent)}
+  .ref{margin-top:10px;font-size:13px;color:var(--sub);border-top:1px dashed var(--line);padding-top:8px}
+  footer{max-width:1180px;margin:18px auto 30px;padding:0 20px;font-size:12.5px;color:var(--sub)}
+  footer ul{margin:4px 0;padding-left:18px}
+</style>
+</head>
+<body>
+<header>
+  <h1>拠点からの距離試算</h1>
+  <div class="base"><label for="base">拠点</label><select id="base"></select></div>
+  <button class="ghost" id="clearAll" type="button">すべてクリア</button>
+</header>
+<div id="gate" style="display:none;position:fixed;inset:0;background:rgba(20,28,45,.55);z-index:50;align-items:center;justify-content:center">
+  <form id="gateForm" style="background:#fff;border-radius:12px;padding:24px 26px;width:min(420px,90vw);box-shadow:0 10px 30px rgba(0,0,0,.25)">
+    <div style="font-weight:700;font-size:17px;margin-bottom:6px">拠点からの距離試算</div>
+    <div style="font-size:14px;color:var(--sub);margin-bottom:12px">社内の合言葉を入力してください。</div>
+    <input id="gatePass" type="password" autocomplete="current-password" style="width:100%;font:inherit;padding:10px;border:1px solid #c3cad6;border-radius:6px">
+    <label style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--sub);margin-top:8px"><input type="checkbox" id="gateKeep" checked>このPCで合言葉を覚える</label>
+    <div id="gateMsg" style="color:var(--err);font-size:13px;min-height:18px;margin-top:6px"></div>
+    <button type="submit" style="margin-top:6px;width:100%;padding:10px;font:inherit;font-weight:700;color:#fff;background:var(--accent);border:0;border-radius:6px;cursor:pointer">開く</button>
+  </form>
+</div>
+<main>
+  <div class="grid" id="grid"></div>
+</main>
+<footer>
+  <ul>
+    <li>集荷先：拠点の住所から集荷先住所までの道路距離（Googleマップ）。最短時間ルート（高速・有料道路を含む）と一般道のみの2通りを表示します（所要時間は渋滞を考慮しない目安）。</li>
+    <li>配達先：拠点の店から管轄店（着店）までの店間距離＋中継・有料配達の加算距離（運賃/燃料SC計算用の距離で、実際の道路距離ではありません）。</li>
+    <li>住所は直接入力するとプルダウンに自動で反映されます。反映された町名が違うときは、プルダウンで選び直してください。</li>
+    <li>データ：輸送の手引き（2026年11月24日時点）・距離マスタ（起点21拠点）。計算は社内サーバーで行います。</li>
+  </ul>
+</footer>
+<template id="tpl">
+  <section class="card">
+    <h2><span class="tag"></span></h2>
+    <label class="field"><span>住所を直接入力（例：北海道函館市恵山町）</span><input type="text" class="addr" autocomplete="off"></label>
+    <div class="or">またはプルダウンで選択</div>
+    <div class="sel3">
+      <select class="pref" aria-label="都道府県"></select>
+      <select class="city" aria-label="市区町村"></select>
+      <select class="town full" aria-label="町名・建物"></select>
+    </div>
+    <div class="msg"></div>
+    <div class="result"></div>
+  </section>
+</template>
+<script>
+const API='https://kyori-api-718307248152.asia-northeast1.run.app';
+const $=(s,r=document)=>r.querySelector(s);
+const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+const SS={get(k){try{return sessionStorage.getItem(k)}catch(e){return null}},set(k,v){try{sessionStorage.setItem(k,v)}catch(e){}}};
+let PASS=LS.get('kyori.pass')||SS.get('kyori.pass')||'';
+let DATA=null;
+class AuthErr extends Error{}
+async function api(path,body){
+  const r=await fetch(API+path,{method:body?'POST':'GET',headers:Object.assign({'X-Pass':PASS},body?{'Content-Type':'application/json'}:{}),body:body?JSON.stringify(body):undefined});
+  const j=await r.json().catch(()=>({}));
+  if(r.status===401){LS.del('kyori.pass');throw new AuthErr(j.error||'合言葉が違います');}
+  if(!r.ok) throw new Error(j.error||('通信エラー（'+r.status+'）'));
+  return j;
+}
+const baseSel=$('#base');
+function markBase(){baseSel.classList.toggle('need',baseSel.value==='');}
+const norm=s=>(s||'').normalize('NFKC').replace(/[\s　]/g,'').replace(/ヶ/g,'ケ').replace(/ヵ/g,'カ').replace(/[－‐―ー−]/g,'-');
+let PREFS=[];
+const prefShort=p=>p==='北海道'?p:p.replace(/[都府県]$/,'');
+
+function shortLabel(it){ let t=it.replace(/○○$/,'～'); const m=t.match(/^([^（]*)（(.*)）$/); if(m){const subs=m[2].split('、'); t=m[1]+'（'+subs.slice(0,3).join('、')+(subs.length>3?' ほか'+(subs.length-3)+'件':'')+'）';} return t.length>60?t.slice(0,58)+'…':t; }
+function itemsOf(city){ // option list
+  const list=[];
+  city.rows.forEach((r,ri)=>{
+    if(r[0]==='d') list.push({ri,ii:-1,label:'その他の町名（下記以外）'});
+    else r[1].forEach((it,ii)=>list.push({ri,ii,label:(r[0]==='b'?'【建物】':'')+shortLabel(it)}));
+  });
+  return list;
+}
+function matchTown(city,rest){
+  let best=null;
+  const r=norm(rest);
+  city.rows.forEach((row,ri)=>{
+    if(row[0]==='d') return;
+    row[1].forEach((it,ii)=>{
+      const m=it.match(/^([^（(]*)(?:[（(](.*)[）)])?/);
+      const base=norm(m[1].replace(/○○$/,''));
+      if(!base) return;
+      let sc=0, cond=false;
+      if(row[0]==='b'){ if(base.length>=2&&r.includes(base)) sc=300+base.length; }
+      else if(r.startsWith(base)) sc=100+base.length;
+      else if(base.length>=3&&r.includes(base)) sc=50+base.length;
+      if(!sc) return;
+      if(m[2]){ const subs=m[2].split('、').map(x=>norm(x)).filter(x=>x&&!/\d/.test(x));
+        const after=r.slice(r.indexOf(base)+base.length);
+        if(subs.length&&subs.some(x=>after.includes(x))) sc+=100; else cond=true; }
+      if(!best||sc>best.sc) best={ri,ii,sc,cond};
+    });
+  });
+  return best;
+}
+function parse(addr){
+  const a=norm(addr); if(!a) return null;
+  let pIdx=-1,rest=a;
+  PREFS.forEach((P,i)=>{ for(const k of [norm(P.p),norm(prefShort(P.p))]) if(pIdx<0&&a.startsWith(k)){pIdx=i;rest=a.slice(k.length);} });
+  const pool=pIdx>=0?[pIdx]:PREFS.map((_,i)=>i);
+  let best=null;
+  for(const pi of pool) PREFS[pi].cities.forEach((c,ci)=>{
+    const forms=[c.mN]; if(c.parts.length>1&&/郡$/.test(c.parts[0])) forms.push(norm(c.parts[1]));
+    for(const f of forms) if(rest.startsWith(f)&&(!best||f.length>best.len)) best={pi,ci,len:f.length,cnt:1};
+      else if(pIdx<0&&rest.startsWith(f)&&best&&f.length===best.len&&best.pi!==pi) best.cnt++;
+  });
+  if(!best){
+    // ward missing for designated city?
+    for(const pi of pool){ const c=PREFS[pi].cities.find(c=>c.parts.length>1&&/市$/.test(c.parts[0])&&rest.startsWith(norm(c.parts[0]))); if(c) return {pi,err:'区まで入力してください（例：'+c.parts[0]+c.parts[1]+'）'}; }
+    return {pi:pIdx,err:pIdx>=0?'市区町村が見つかりません。プルダウンで選んでください。':'都道府県・市区町村が見つかりません。都道府県から入力してください。'};
+  }
+  if(best.cnt>1) return {err:'同じ名前の市区町村が複数あります。都道府県から入力してください。'};
+  const city=PREFS[best.pi].cities[best.ci];
+  const town=rest.slice(best.len);
+  const t=town?matchTown(city,town):null;
+  return {pi:best.pi,ci:best.ci,town,t};
+}
+
+function fromText(P){
+  const r=parse(P.addr.value); P.note='';
+  if(!r){setMsg(P,'');return;}
+  if(r.pi>=0&&r.pi!==undefined){P.pref.value=String(r.pi);P.fill.fillCity();}
+  if(r.err){setMsg(P,r.err,'err');render(P);return;}
+  P.city.value=String(r.ci);P.fill.fillTown();
+  if(r.t){P.town.value=r.t.ri+'|'+r.t.ii;
+    if(r.t.cond){setMsg(P,'町名の後ろの条件（字名・丁目など）が一致しているか確認してください。','warn');} else setMsg(P,'');}
+  else {P.town.selectedIndex=0;
+    setMsg(P,r.town?'町名「'+r.town+'」は個別の指定がないため「その他の町名（下記以外）」で計算しました。':'町名がないため「その他の町名（下記以外）」で計算しました。町名まで入れると確実です。','warn');}
+  render(P);
+}
+
+const esc=t=>String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function baseLabel(b){return esc(b[0])+'　'+esc(b[1]);}
+function fmt(n){return n.toLocaleString('ja-JP')}
+const fmtKm=m=>(m/1000).toLocaleString('ja-JP',{maximumFractionDigits:1});
+const fmtT=s=>{const m=Math.round(s/60);return m<60?('約'+m+'分'):('約'+Math.floor(m/60)+'時間'+(m%60)+'分');};
+function gmUrl(o,d){return 'https://www.google.com/maps/dir/?api=1&travelmode=driving'+(o?'&origin='+encodeURIComponent(o):'')+'&destination='+encodeURIComponent(d);}
+const panels=[];
+function makePanel(title){
+  const el=$('#tpl').content.firstElementChild.cloneNode(true);
+  $('.tag',el).textContent=title;
+  $('#grid').appendChild(el);
+  const P={title,el,addr:$('.addr',el),pref:$('.pref',el),city:$('.city',el),town:$('.town',el),msg:$('.msg',el),res:$('.result',el),note:''};
+  P.pref.add(new Option('都道府県を選択',''));
+  PREFS.forEach((x,i)=>P.pref.add(new Option(x.p,i)));
+  const fillCity=()=>{P.city.length=0;P.town.length=0;P.city.add(new Option('市区町村を選択',''));P.town.add(new Option('町名・建物を選択',''));
+    if(P.pref.value==='')return; PREFS[P.pref.value].cities.forEach((c,i)=>P.city.add(new Option(c.m.replace(' ','　'),i)));};
+  const fillTown=()=>{P.town.length=0; if(P.city.value===''){P.town.add(new Option('町名・建物を選択',''));return;}
+    itemsOf(PREFS[P.pref.value].cities[P.city.value]).forEach(o=>P.town.add(new Option(o.label,o.ri+'|'+o.ii)));};
+  P.pref.onchange=()=>{fillCity();P.msg.textContent='';P.note='';render(P);};
+  P.city.onchange=()=>{fillTown();P.msg.textContent='';P.note='';render(P);};
+  P.town.onchange=()=>{P.note='';render(P);};
+  let tm; P.addr.oninput=()=>{clearTimeout(tm);tm=setTimeout(()=>fromText(P),250);};
+  P.fill={fillCity,fillTown};
+  fillCity(); panels.push(P); return P;
+}
+function setMsg(P,t,c){P.msg.textContent=t||'';P.msg.className='msg'+(c?' '+c:'');}
+const roadCache=new Map();
+function road(b,dest){const k=b+'|'+dest; if(roadCache.has(k)) return roadCache.get(k);
+  const pr=api('/api/road',{b,dest}); roadCache.set(k,pr); pr.catch(()=>roadCache.delete(k)); return pr;}
+function onAuth(e){ if(e instanceof AuthErr){ showGate(e.message); return true;} return false; }
+function render(P){
+  const token=(P.tok=(P.tok||0)+1);
+  if(baseSel.value===''){P.res.innerHTML='<div style="color:var(--warn);font-size:14px;font-weight:600">上の「拠点」を選んでください。</div>';P.out=null;return;}
+  const base=DATA.bases[+baseSel.value];
+  if(P.pref.value===''||P.city.value===''||P.town.value===''){P.res.innerHTML='<div style="color:var(--sub);font-size:14px">住所を入力するか、プルダウンで選んでください。</div>';P.out=null;return;}
+  const pi=+P.pref.value, ci=+P.city.value, city=PREFS[pi].cities[ci];
+  const [ri]=P.town.value.split('|').map(Number); const row=city.rows[ri];
+  const place=PREFS[pi].p+city.m.replace(' ','')+(P.town.selectedIndex>0||row[0]!=='d'?P.town.options[P.town.selectedIndex].text.replace('【建物】',' ').replace('その他の町名（下記以外）','（下記以外）'):'（下記以外）');
+  const dest=P.addr.value.trim()||place.replace(/（下記以外）$/,'').replace(/～/g,'');
+  P.out={place};
+  const origin=base[2]||'';
+  const link='<a class="gm" target="_blank" rel="noopener" href="'+esc(gmUrl(origin,dest))+'">';
+  if(P.road){
+    const head='<div style="font-size:13px;color:var(--sub)">拠点から集荷先までの道路距離<span class="road">Googleマップ</span></div>';
+    const show=(main,extra)=>{P.res.innerHTML=head+main+'<div style="margin-top:4px">'+link+'Googleマップでルートを見る</a></div>'+(extra||'');};
+    show('<div class="km na" style="color:var(--sub)">計算中…</div>');
+    road(base[0],dest).then(({fast:f,local:l})=>{ if(token!==P.tok) return;
+      const loc=l.err?'取得できませんでした':(fmtKm(l.m)+' km　'+fmtT(l.s));
+      show('<div style="font-size:14px;margin-top:2px">最短時間ルート（高速・有料道路を含む）</div><div class="km">'+fmtKm(f.m)+'<small>km</small></div>','<dl><dt>拠点</dt><dd>'+baseLabel(base)+'</dd><dt>所要時間</dt><dd>'+fmtT(f.s)+'（最短時間ルート）</dd></dl><dl style="margin-top:14px"><dt>一般道のみ</dt><dd>'+loc+'</dd></dl><div style="font-size:12px;color:var(--sub)">所要時間は渋滞を考慮しない目安です。</div>'); })
+    .catch(e=>{ if(token!==P.tok||onAuth(e)) return; show('<div class="km na">道路距離を取得できませんでした</div>','<div class="msg err">'+esc(e.message)+'</div>'); });
+    return;
+  }
+  P.res.innerHTML='<div style="font-size:13px;color:var(--sub)">運賃/燃料SC計算用距離（店間距離＋加算距離）</div><div class="km na" style="color:var(--sub)">計算中…</div>';
+  api('/api/calc',{b:base[0],p:pi,c:ci,r:ri}).then(({stn,d,add})=>{ if(token!==P.tok) return;
+    let kmHtml;
+    if(d===null||d===undefined) kmHtml='<div class="km na">データなし（この拠点からの距離がありません）</div>';
+    else kmHtml='<div class="km">'+fmt(d+add)+'<small>km</small></div>';
+    P.res.innerHTML='<div style="font-size:13px;color:var(--sub)">運賃/燃料SC計算用距離（店間距離＋加算距離）</div>'+kmHtml+'<dl><dt>拠点</dt><dd>'+baseLabel(base)+'</dd><dt>西濃着店</dt><dd>'+esc(stn)+'</dd><dt>店間距離</dt><dd>'+(d==null?'—':fmt(d)+' km'+(d===0?'（拠点の管轄内）':''))+'</dd><dt>加算距離</dt><dd>'+add+' km'+(add?'（中継・有料配達）':'')+'</dd></dl><div class="ref" data-gm>参考：拠点からGoogleマップの道路距離 <span class="gmv">計算中…</span></div>';
+    const el=P.res.querySelector('.gmv');
+    road(base[0],dest).then(({fast:f,local:l})=>{ if(token!==P.tok) return; el.innerHTML='<br>最短時間ルート：'+fmtKm(f.m)+' km　'+fmtT(f.s)+'<br>一般道のみ：'+(l.err?'取得できませんでした':fmtKm(l.m)+' km　'+fmtT(l.s))+'<br>'+link+'ルートを見る</a>'; })
+    .catch(e=>{ if(token!==P.tok||onAuth(e)) return; el.textContent='（取得できませんでした：'+e.message+'）'; });
+  }).catch(e=>{ if(token!==P.tok||onAuth(e)) return; P.res.innerHTML='<div class="msg err">'+esc(e.message)+'</div>'; });
+}
+// ---- 合言葉 ----
+function showGate(msg){ $('#gate').style.display='flex'; $('#gateMsg').textContent=msg||''; setTimeout(()=>$('#gatePass').focus(),50); }
+$('#gateForm').onsubmit=e=>{ e.preventDefault(); PASS=$('#gatePass').value; if($('#gateKeep').checked) LS.set('kyori.pass',PASS); SS.set('kyori.pass',PASS); start(); };
+let started=false;
+async function start(){
+  try{
+    if(!DATA){ DATA=await api('/api/struct'); }
+    else { await api('/api/struct'); }
+  }catch(e){ if(onAuth(e)) return; document.getElementById('grid').innerHTML='<div class="msg err" style="padding:20px">サーバーにつながりません：'+esc(e.message)+'</div>'; return; }
+  $('#gate').style.display='none';
+  if(started){ roadCache.clear(); panels.forEach(render); return; }
+  started=true;
+  PREFS=DATA.prefs.map(([p,cities])=>({p,cities:cities.map(([m,rows])=>({m,mN:norm(m),parts:m.split(' '),rows}))}));
+  baseSel.add(new Option('拠点を選択してください',''));
+  DATA.bases.forEach(([c,n],i)=>baseSel.add(new Option(c+'　'+n,i)));
+  {const saved=LS.get('kyori.base.v2'); const i=DATA.bases.findIndex(b=>b[0]===saved); baseSel.value=i<0?'':String(i);}
+  markBase();
+  makePanel('集荷先'); makePanel('配達先'); panels[0].road=true;
+  panels.forEach(render);
+  baseSel.onchange=()=>{markBase(); if(baseSel.value!=='') LS.set('kyori.base.v2',DATA.bases[+baseSel.value][0]); panels.forEach(render);};
+  $('#clearAll').onclick=()=>panels.forEach(P=>{P.addr.value='';P.pref.value='';P.fill.fillCity();setMsg(P,'');render(P);});
+}
+start();
+</script>
+</body>
+</html>
