@@ -105,7 +105,7 @@
 <footer>
   <ul>
     <li>集荷先：拠点の住所から集荷先住所までの道路距離（Googleマップ）。最短時間ルート（高速・有料道路を含む）と一般道のみの2通りを表示します（所要時間は渋滞を考慮しない目安）。</li>
-    <li>配達先：拠点の店から管轄店（着店）までの店間距離＋中継・有料配達の加算距離（運賃/燃料SC計算用の距離で、実際の道路距離ではありません）。</li>
+    <li>配達先：拠点の店から管轄店（着店）までの店間距離＋精算中継距離（運賃/燃料SC計算用の距離で、実際の道路距離ではありません）。</li>
     <li>燃料サーチャージ：メガは配達先の運賃/燃料SC計算用距離と重量、貸切は集荷先→配達先の道路距離（Googleマップ・最短時間ルート）と車格で、選んだ燃料上昇額の表から計算します。</li>
     <li>住所は直接入力するとプルダウンに自動で反映されます。反映された町名が違うときは、プルダウンで選び直してください。</li>
     <li>データ：輸送の手引き（2026年11月24日時点）・距離マスタ（起点21拠点）。計算は社内サーバーで行います。</li>
@@ -266,12 +266,12 @@ function render(P){
     .catch(e=>{ if(token!==P.tok||onAuth(e)) return; show('<div class="km na">道路距離を取得できませんでした</div>','<div class="msg err">'+esc(e.message)+'</div>'); });
     return;
   }
-  P.res.innerHTML='<div style="font-size:13px;color:var(--sub)">運賃/燃料SC計算用距離（店間距離＋加算距離）</div><div class="km na" style="color:var(--sub)">計算中…</div>';
+  P.res.innerHTML='<div style="font-size:13px;color:var(--sub)">運賃/燃料SC計算用距離（店間距離＋精算中継距離）</div><div class="km na" style="color:var(--sub)">計算中…</div>';
   api('/api/calc',{b:base[0],p:pi,c:ci,r:ri}).then(({stn,d,add})=>{ if(token!==P.tok) return;
     let kmHtml;
     if(d===null||d===undefined) kmHtml='<div class="km na">データなし（この拠点からの距離がありません）</div>';
     else kmHtml='<div class="km">'+fmt(d+add)+'<small>km</small></div>';
-    P.res.innerHTML='<div style="font-size:13px;color:var(--sub)">運賃/燃料SC計算用距離（店間距離＋加算距離）</div>'+kmHtml+'<dl><dt>拠点</dt><dd>'+baseLabel(base)+'</dd><dt>西濃着店</dt><dd>'+esc(stn)+'</dd><dt>店間距離</dt><dd>'+(d==null?'—':fmt(d)+' km'+(d===0?'（拠点の管轄内）':''))+'</dd><dt>加算距離</dt><dd>'+add+' km'+(add?'（中継・有料配達）':'')+'</dd></dl><div class="ref" data-gm>参考：拠点からGoogleマップの道路距離 <span class="gmv">計算中…</span></div>';
+    P.res.innerHTML='<div style="font-size:13px;color:var(--sub)">運賃/燃料SC計算用距離（店間距離＋精算中継距離）</div>'+kmHtml+'<dl><dt>拠点</dt><dd>'+baseLabel(base)+'</dd><dt>西濃着店</dt><dd>'+esc(stn)+'</dd><dt>店間距離</dt><dd>'+(d==null?'—':fmt(d)+' km'+(d===0?'（拠点の管轄内）':''))+'</dd><dt>精算中継距離</dt><dd>'+add+' km</dd></dl><div class="ref" data-gm>参考：拠点からGoogleマップの道路距離 <span class="gmv">計算中…</span></div>';
     const el=P.res.querySelector('.gmv');
     road(base[0],dest).then(({fast:f,local:l})=>{ if(token!==P.tok) return; el.innerHTML='<br>最短時間ルート：'+fmtKm(f.m)+' km　'+fmtT(f.s)+'<br>一般道のみ：'+(l.err?'取得できませんでした':fmtKm(l.m)+' km　'+fmtT(l.s))+'<br>'+link+'ルートを見る</a>'; })
     .catch(e=>{ if(token!==P.tok||onAuth(e)) return; el.textContent='（取得できませんでした：'+e.message+'）'; });
